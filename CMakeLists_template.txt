@@ -49,6 +49,7 @@ else ()
 endif ()
 
 include_directories(${includes})
+include_directories(Drivers/STM32746G-Discovery/)
 
 add_definitions(${defines})
 
