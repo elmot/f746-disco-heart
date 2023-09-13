@@ -1,11 +1,12 @@
-#include <stdio.h>
+#include <cstdio>
 #include "main.h"
 #include "stm32746g_discovery_lcd.h"
+#include "MAX30100.h"
 //
 // Created by Ilia.Motornyi on 27-Nov-20.
 //
 
-static void LCD_Config(void) {
+static void LCD_Config() {
     /* LCD Initialization */
     BSP_LCD_Init();
 
@@ -38,22 +39,20 @@ _Noreturn void App_Run(void) {
     LCD_Config();
     BSP_LCD_SetTextColor(LCD_COLOR_YELLOW);
     BSP_LCD_SetBackColor(LCD_COLOR_BLUE);
-    BSP_LCD_DisplayStringAtLine(1, "HTS221 Demo");
-//    int32_t status = CUSTOM_ENV_SENSOR_Init(CUSTOM_HTS221_0, ENV_TEMPERATURE | ENV_HUMIDITY);
-//    printf("Sensor Status: %ld\n", status);
-//    status = CUSTOM_ENV_SENSOR_Enable(CUSTOM_HTS221_0, ENV_TEMPERATURE);
-uint status=12;
-    printf("Sensor Status: %ld\n", status);
-//    status = CUSTOM_ENV_SENSOR_Enable(CUSTOM_HTS221_0, ENV_HUMIDITY);
-    printf("Sensor Status: %ld\n", status);
+    BSP_LCD_DisplayStringAtLine(1, (uint8_t *)"MAX30100 Demo");
     float temp;
-    float hum;
-    char buff[100];
+    uint8_t buff[100];
     BSP_LCD_SetFont(&Font24);
-    while(1) {
-//        CUSTOM_ENV_SENSOR_GetValue(CUSTOM_HTS221_0, ENV_TEMPERATURE, &temp);
-//        CUSTOM_ENV_SENSOR_GetValue(CUSTOM_HTS221_0, ENV_HUMIDITY, &hum);
-        snprintf(buff, sizeof buff, "Temp: %6.1f; Hum: %6.1f", temp, hum);
+    MAX30100 sensor;
+    sensor.startTemperatureSampling();
+    while(true) {
+        sensor.begin();
+        uint8_t partId = sensor.getPartId();
+        if(sensor.isTemperatureReady()) {
+            temp = sensor.retrieveTemperature();
+            sensor.startTemperatureSampling();
+        }
+        snprintf((char*)buff, sizeof buff, "Part ID: %x; Temp: %6.1fC",partId, temp);
         BSP_LCD_DisplayStringAtLine(4, buff);
         HAL_Delay(1000);
     }
