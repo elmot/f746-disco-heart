@@ -30,7 +30,7 @@ void SerialStub::print(int i, RadixType radix) {
 }
 
 void SerialStub::print(char c) {
-    HAL_UART_Transmit(&UART,  (uint8_t*)&c, 1, 1);
+    putchar(c);
 }
 void SerialStub::print(float f) {
     std::string res = std::to_string(f);
@@ -38,8 +38,7 @@ void SerialStub::print(float f) {
 }
 
 void SerialStub::print(const char *txt) {
-    size_t len = strlen(txt);
-    HAL_UART_Transmit(&UART, (uint8_t *) txt, len, len);
+    fputs(txt, stdout);
 }
 
 bool SerialStub::available() {

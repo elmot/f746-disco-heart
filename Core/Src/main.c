@@ -21,6 +21,7 @@
 
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
+#include <sys/cdefs.h>
 
 /* USER CODE END Includes */
 
@@ -102,7 +103,13 @@ static void MX_I2C1_Init(void);
 
 /* Private user code ---------------------------------------------------------*/
 /* USER CODE BEGIN 0 */
-
+__unused int _write(int fd, const void *buffer, unsigned int count) { // NOLINT(*-reserved-identifier)
+    HAL_StatusTypeDef status = HAL_UART_Transmit(&huart1, buffer, count, count);
+    if ( status!= HAL_OK) {
+        Error_Handler();
+    }
+    return (int)count;
+}
 /* USER CODE END 0 */
 
 /**

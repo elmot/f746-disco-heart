@@ -40,7 +40,6 @@ static void LCD_Config() {
 
 _Noreturn void App_Run(void) {
     setup();
-    sensor.resume();
     sensor.resetFifo();
     while (true)
     {
