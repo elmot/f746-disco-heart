@@ -1,11 +1,7 @@
 #include <cstdio>
 #include "main.h"
 #include "stm32746g_discovery_lcd.h"
-#include "Arduino.h"
 #include "MAX30100.h"
-//
-// Created by Ilia.Motornyi on 27-Nov-20.
-//
 
 static void LCD_Config() {
     BSP_SDRAM_Init();
@@ -14,74 +10,109 @@ static void LCD_Config() {
 
     /* LCD Initialization */
     BSP_LCD_LayerDefaultInit(0, LCD_FB_START_ADDRESS);
-    BSP_LCD_LayerDefaultInit(1, LCD_FB_START_ADDRESS + (BSP_LCD_GetXSize() * BSP_LCD_GetYSize() * 4));
 
     /* Enable the LCD */
     BSP_LCD_DisplayOn();
 
-    /* Select the LCD Background Layer  */
-    BSP_LCD_SelectLayer(0);
-
     /* Clear the Background Layer */
     BSP_LCD_Clear(LCD_COLOR_DARKBLUE);
 
-    /* Select the LCD Foreground Layer  */
-    BSP_LCD_SelectLayer(1);
-
-    /* Clear the Foreground Layer */
-    BSP_LCD_Clear(LCD_COLOR_DARKBLUE);
-
-    /* Configure the transparency for foreground and background :
-       Increase the transparency */
-    BSP_LCD_SetTransparency(0, 0);
-    BSP_LCD_SetTransparency(1, 255);
+    BSP_LCD_SetTransparency(0, 255);
 }
-#include "../examples/MAX30100_RawData/MAX30100_RawData.ino"
 
-_Noreturn void App_Run(void) {
-    setup();
+const int sampleCapacity = 480;
+const int graphTop = 60;
+const int graphBottom = 272;
+const int graphHeight = graphBottom - graphTop;
+
+static MAX30100 sensor;
+
+void drawGraph(const uint16_t samples[sampleCapacity], uint32_t color);
+
+void clearGraph();
+
+void setupSensor() {
+
+    puts("Initializing MAX30100..");
+
+    // Initialize the sensor
+// Failures are generally due to an improper I2C wiring, missing power supply
+// or wrong target chip
+    if (!sensor.begin()) {
+        puts("FAILED");
+        for (;;);
+    } else {
+        puts("SUCCESS");
+    }
+
+    // Set up the wanted parameters
+    sensor.setMode(MAX30100_MODE_SPO2_HR);
+//    sensor.setMode(MAX30100_MODE_HRONLY);
+    sensor.setLedsCurrent(MAX30100_LED_CURR_11MA, MAX30100_LED_CURR_11MA);
+    sensor.setLedsPulseWidth(MAX30100_SPC_PW_1600US_16BITS);
+    sensor.setSamplingRate(MAX30100_SAMPRATE_400HZ);
+    sensor.setHighresModeEnabled(true);
     sensor.resetFifo();
-    while (true)
-    {
-        loop();
+}
+
+
+void drawGraph(const uint16_t samples[sampleCapacity], uint32_t color) {
+    int topVal = samples[0];
+    int bottomVal = topVal;
+    for (int i = 1; i < sampleCapacity; ++i) {
+        auto v = samples[i];
+        if (v > topVal) topVal = v;
+        if (v < bottomVal) bottomVal = v;
+    }
+    if (topVal == bottomVal) {
+        topVal += 10;
+        bottomVal -= 10;
+    } else {
+        auto d = (topVal - bottomVal) / 10;
+        topVal += d;
+        bottomVal -= d;
+    }
+    for (int i = 0; i < sampleCapacity; ++i) {
+        auto v = samples[i];
+        int y = graphBottom - graphHeight * (v - bottomVal) / (topVal - bottomVal);
+        BSP_LCD_DrawPixel(i, y, color);
     }
 }
-_Noreturn void _App_Run(void) {
+
+void clearGraph() {
+    BSP_LCD_SetTextColor(LCD_COLOR_DARKGREEN);
+    BSP_LCD_FillRect(0, graphTop, sampleCapacity, graphHeight);
+}
+
+_Noreturn void App_Run(void) {
     LCD_Config();
     BSP_LCD_SetTextColor(LCD_COLOR_YELLOW);
     BSP_LCD_SetBackColor(LCD_COLOR_DARKBLUE);
-    BSP_LCD_Clear(LCD_COLOR_TRANSPARENT);
     BSP_LCD_DisplayStringAtLine(0, (uint8_t *) "MAX30100 Demo");
-    float temp;
-    uint8_t buff[100];
     BSP_LCD_SetFont(&Font24);
-    MAX30100 sensor;
-    sensor.startTemperatureSampling();
-    sensor.setMode(MAX30100_MODE_SPO2_HR);
-    sensor.setSamplingRate(MAX30100_SAMPRATE_100HZ);
-    sensor.setLedsCurrent(MAX30100_LED_CURR_24MA, MAX30100_LED_CURR_24MA);
-    sensor.setLedsPulseWidth(MAX30100_SPC_PW_200US_13BITS);
-    sensor.resetFifo();
-    while (true){
-
-    }
+    setupSensor();
+    static uint16_t sampleBufferIr[sampleCapacity];
+    static uint16_t sampleBufferRed[sampleCapacity];
+    int sampleIndex = 0;
     while (true) {
-        sensor.update();
-        uint8_t partId = sensor.getPartId();
-//        if (sensor.isTemperatureReady()) {
-//            temp = sensor.retrieveTemperature();
-//            sensor.startTemperatureSampling();
-//        }
-        snprintf((char *) buff, sizeof buff, "Part ID: %x; Temp: %6.1fC", partId, temp);
-        BSP_LCD_DisplayStringAtLine(1, buff);
-        for(int i = 2; i<8;++i) {
-            uint16_t ir = -1, red = -1;
-            sensor.getRawValues(&ir, &red);
-            snprintf((char *) buff, sizeof buff, "IR: %d; RED: %d", ir, red);
-            BSP_LCD_DisplayStringAtLine(i, buff);
-        }
-        sensor.resetFifo();
-        HAL_Delay(120);
-    }
+        uint16_t ir, red;
 
+        sensor.update();
+
+        while (sensor.getRawValues(&ir, &red)) {
+            if (sampleIndex >= 0) {
+                sampleBufferIr[sampleIndex] = ir;
+                sampleBufferRed[sampleIndex] = red;
+                BSP_LCD_DrawPixel(sampleIndex, graphTop, LCD_COLOR_GREEN);
+            }
+            sampleIndex++;
+            if (sampleIndex >= sampleCapacity) {
+                clearGraph();
+                drawGraph(sampleBufferIr, LCD_COLOR_LIGHTCYAN);
+                drawGraph(sampleBufferRed, LCD_COLOR_LIGHTRED);
+                sampleIndex = 0;
+                sensor.resetFifo();
+            }
+        }
+    }
 }
