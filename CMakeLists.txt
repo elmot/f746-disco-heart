@@ -8,7 +8,7 @@ set(CMAKE_EXECUTABLE_SUFFIX .elf)
 # specify cross-compilers and tools
 set(CMAKE_C_COMPILER arm-none-eabi-gcc)
 set(CMAKE_CXX_COMPILER arm-none-eabi-g++)
-set(CMAKE_ASM_COMPILER  arm-none-eabi-gcc)
+set(CMAKE_ASM_COMPILER arm-none-eabi-gcc)
 set(CMAKE_AR arm-none-eabi-ar)
 set(CMAKE_OBJCOPY arm-none-eabi-objcopy)
 set(CMAKE_OBJDUMP arm-none-eabi-objdump)
@@ -71,6 +71,12 @@ target_sources(${PROJECT_NAME} PRIVATE
         Arduino-MAX30100/src/MAX30100_PulseOximeter.cpp
         Arduino-MAX30100/src/MAX30100_SpO2Calculator.cpp
 )
+
+####
+####  CMSIS-DSP
+####
+add_subdirectory(CMSIS-DSP)
+target_link_libraries(${PROJECT_NAME} CMSISDSP)
 
 set(HEX_FILE ${PROJECT_BINARY_DIR}/${PROJECT_NAME}.hex)
 set(BIN_FILE ${PROJECT_BINARY_DIR}/${PROJECT_NAME}.bin)
