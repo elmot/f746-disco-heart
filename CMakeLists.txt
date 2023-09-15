@@ -72,9 +72,7 @@ target_sources(${PROJECT_NAME} PRIVATE
         Arduino-MAX30100/src/MAX30100_SpO2Calculator.cpp
 )
 
-####
 ####  CMSIS-DSP
-####
 add_subdirectory(CMSIS-DSP)
 target_link_libraries(${PROJECT_NAME} CMSISDSP)
 
