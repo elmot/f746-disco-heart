@@ -12,7 +12,8 @@
 const int SAMPLE_CAPACITY = (512);
 const int SAMPLE_CAPACITY_HALF = (SAMPLE_CAPACITY / 2);
 
-void performFFT(q15_t srcBuffer[SAMPLE_CAPACITY], q15_t dstBuffer[SAMPLE_CAPACITY]);
+void performFFT(uint16_t const srcBuffer[SAMPLE_CAPACITY], float dstBuffer[SAMPLE_CAPACITY]);
 
+void performBandPass(uint16_t const srcBuffer[SAMPLE_CAPACITY], float dstBuffer[SAMPLE_CAPACITY_HALF]);
 
 #endif //F746_DISCO_HEART_DIGITAL_FILTER_H

@@ -23,20 +23,22 @@ static void LCD_Config() {
 
 const int sensorSamplingRate = 100;
 const int graphTop = 60;
-const int graphBottom = 272;
+const uint graphBottom = 272;
 const int graphHeight = graphBottom - graphTop;
 const float frequency_resolution = (float) sensorSamplingRate / (float) SAMPLE_CAPACITY;
 static MAX30100 sensor;
 
 static uint16_t sampleBufferIr[SAMPLE_CAPACITY];
+static float filteredBuffer[SAMPLE_CAPACITY];
 static uint16_t sampleBufferRed[SAMPLE_CAPACITY];
-static uint16_t fftBufferPwr[SAMPLE_CAPACITY_HALF];
+static float fftBufferPwr[SAMPLE_CAPACITY_HALF];
 
-void drawGraph(const uint16_t samples[], int valCnt, uint32_t color);
+template<typename T>
+void drawGraph(const T samples[], int valCnt, uint32_t color);
 
 void clearGraph();
 
- void setupSensor() {
+void setupSensor() {
 
     puts("Initializing MAX30100..");
 
@@ -58,33 +60,43 @@ void clearGraph();
 //    sensor.setMode(MAX30100_MODE_HRONLY);
     sensor.setLedsCurrent(MAX30100_LED_CURR_11MA, MAX30100_LED_CURR_11MA);
     sensor.setLedsPulseWidth(MAX30100_SPC_PW_400US_14BITS);
-    sensor.setSamplingRate(MAX30100_SAMPRATE_50HZ);
+    sensor.setSamplingRate(MAX30100_SAMPRATE_100HZ);
     sensor.setHighresModeEnabled(true);
     sensor.resetFifo();
 }
 
-
-void drawGraph(const uint16_t samples[], int valCnt, uint32_t color) {
-    int topVal = samples[0];
-    int bottomVal = topVal;
+template<typename T>
+void drawGraph(const T samples[], int valCnt, uint32_t color) {
+    T topVal = samples[0];
+    T bottomVal = topVal;
     for (int i = 1; i < valCnt; ++i) {
-        auto v = samples[i];
+        T v = samples[i];
         if (v > topVal) topVal = v;
         if (v < bottomVal) bottomVal = v;
     }
+    float d;
     if (topVal == bottomVal) {
-        topVal += 10;
-        bottomVal -= 10;
+        d = 100;
     } else {
-        auto d = (topVal - bottomVal) / 10;
-        topVal += d;
-        bottomVal -= d;
+        d = (topVal - bottomVal) * 1.1;
     }
+    bottomVal -= d / 10;
+    uint oldY;
+    uint32_t oldTextColor = BSP_LCD_GetTextColor();
+    BSP_LCD_SetTextColor(color);
     for (int i = 0; i < valCnt; ++i) {
-        auto v = samples[i];
-        int y = graphBottom - graphHeight * (v - bottomVal) / (topVal - bottomVal);
-        BSP_LCD_DrawPixel(i, y, color);
+        float v = samples[i];
+        float normV = (v - bottomVal) / (float) d;
+        if (normV < 0.0f) normV = 0.f;
+        if (normV > 1.0f) normV = 1.f;
+        uint y = graphBottom - (uint) round(graphHeight * normV);
+        if (i > 0) {
+            BSP_LCD_DrawLine(i - 1, oldY, i, y);
+        }
+        oldY = y;
     }
+    BSP_LCD_SetTextColor(oldTextColor);
+
 }
 
 void clearGraph() {
@@ -114,12 +126,15 @@ _Noreturn void App_Run(void) {
             sampleIndex++;
             if (sampleIndex >= SAMPLE_CAPACITY) {
                 clearGraph();
-                performFFT((q15_t *) sampleBufferIr, (q15_t *) fftBufferPwr);
+                performFFT(sampleBufferIr, fftBufferPwr);
+                performBandPass(sampleBufferIr, filteredBuffer);
                 drawGraph(sampleBufferIr, 480, LCD_COLOR_LIGHTCYAN);
                 drawGraph(sampleBufferRed, 480, LCD_COLOR_LIGHTRED);
                 drawGraph(fftBufferPwr, SAMPLE_CAPACITY_HALF, LCD_COLOR_ORANGE);
+                drawGraph(filteredBuffer, 480, LCD_COLOR_LIGHTBLUE);
                 for (int i = 1; i < SAMPLE_CAPACITY_HALF; i++) {
-                    printf("%d\tfrq: %.1f\tenergy %.d\r\n", i, (float) i * frequency_resolution, fftBufferPwr[i]);
+                    printf("%d\tfrq: %.1f\tenergy %f\r\n", i, (float) i * frequency_resolution,
+                           (float) fftBufferPwr[i]);
                 }
                 sampleIndex = 0;
                 sensor.resetFifo();
