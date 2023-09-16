@@ -20,7 +20,7 @@ const int SAMPLE_CAPACITY = (480);
 static const int BLOCK_SIZE = 64;
 
 template<typename NUM, int len>
-std::array<float, len> num_to_float_normalize(const NUM srcBuf[len]) {
+std::array<float, len> num_to_float_normalize(const std::array<NUM, len> &srcBuf, int srcIndexShift = 0) {
     NUM topVal = srcBuf[0];
     NUM bottomVal = topVal;
     for (int i = 1; i < len; ++i) {
@@ -33,7 +33,7 @@ std::array<float, len> num_to_float_normalize(const NUM srcBuf[len]) {
     NUM mid = (topVal + bottomVal) / 2;
     std::array<float, len> result = {};
     for (int i = 0; i < len; ++i) {
-        double v = (srcBuf[i] - bottomVal) / magnitudeScale;
+        double v = (srcBuf[(i + srcIndexShift) % len] - bottomVal) / magnitudeScale;
         if (v > 1.0) v = 1.0; else if (v < -1.0) v = -1.0;
         result[i] = v;
     }

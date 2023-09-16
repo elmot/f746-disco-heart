@@ -4,8 +4,6 @@
 #include "digital_filter.h"
 #include "main.h"
 #include "stm32746g_discovery_lcd.h"
-#include <FreeRTOS.h>
-#include "queue.h"
 #include "sensor.h"
 
 static void LCD_Config() {
@@ -29,8 +27,8 @@ const int graphTop = 60;
 const uint graphBottom = 272;
 const int graphHeight = graphBottom - graphTop;
 
-static uint16_t sampleBufferIr[SAMPLE_CAPACITY];
-__unused static uint16_t sampleBufferRed[SAMPLE_CAPACITY];
+static std::array<uint16_t,SAMPLE_CAPACITY> sampleBufferIr;
+static std::array<uint16_t,SAMPLE_CAPACITY> sampleBufferRed;
 
 void clearGraph();
 
@@ -92,8 +90,7 @@ __unused std::array<float, len> autoConvolution(const std::array<float, len> &sr
 }
 
 template<size_t len>
-std::array<float, len>
-customConvolution(const std::array<float, len> &srcBufferA, const std::array<float, len> &srcBufferB) {
+__unused std::array<float, len>customConvolution(const std::array<float, len> &srcBufferA, const std::array<float, len> &srcBufferB) {
     const uint bufLen = len + len / 2;
     float buffer[bufLen];
     arm_conv_partial_f32(srcBufferA.data(), (uint32_t) len,
@@ -107,8 +104,7 @@ customConvolution(const std::array<float, len> &srcBufferA, const std::array<flo
 }
 
 template<size_t len>
-std::array<float, len>
-revert(const std::array<float, len> &srcBuffer) {
+__unused std::array<float, len> revert(const std::array<float, len> &srcBuffer) {
     std::array<float, len> result = {};
     std::copy(std::begin(srcBuffer), std::end(srcBuffer), result.rbegin());
     return result;
@@ -202,30 +198,30 @@ _Noreturn void App_Run(void) {
     int sampleIndex = 0;
     while (true) {
         SensorSample_t sample;
-        bool received = receiveData( &sample, 1000);
-        if(received == pdPASS) {
-            if (sampleIndex >= 0) {
-                sampleBufferIr[sampleIndex] = sample.ir;
-                sampleBufferRed[sampleIndex] = sample.red;
-                BSP_LCD_DrawPixel(sampleIndex, graphTop, LCD_COLOR_GREEN);
-            }
+        bool dataReceived = false;
+        while (receiveData(&sample, dataReceived ? 0 : 1000)) {
+            sampleBufferIr[sampleIndex] = sample.ir;
+            sampleBufferRed[sampleIndex] = sample.red;
             sampleIndex++;
             if (sampleIndex >= SAMPLE_CAPACITY) {
-                clearGraph();
-                auto normalized =
-                        num_to_float_normalize<uint16_t, SAMPLE_CAPACITY>(sampleBufferIr);
-                auto afterLowPass = performFirPass(normalized, LOW_PASS_TAPS);
-                auto afterHighPass = performFirPass(afterLowPass, HIGH_PASS_TAPS);
-                auto convoluted = customConvolution(afterLowPass, revert(afterLowPass));
-                drawGraph(normalized, LCD_COLOR_LIGHTCYAN);
-                drawGraph(afterLowPass, LCD_COLOR_LIGHTBLUE);
-                drawGraph(afterHighPass, LCD_COLOR_ORANGE);
-//                drawGraph(convoluted, LCD_COLOR_WHITE);
-                const std::vector<int> &peaks = detectPeaks(afterHighPass);
-                drawPeaks(peaks);
-                outputHeartRate(peaks);
                 sampleIndex = 0;
             }
+            dataReceived = true;
+        }
+        if (dataReceived) {
+            clearGraph();
+            auto normalized =
+                    num_to_float_normalize<uint16_t, SAMPLE_CAPACITY>(sampleBufferIr, sampleIndex);
+            auto afterLowPass = performFirPass(normalized, LOW_PASS_TAPS);
+            auto afterHighPass = performFirPass(afterLowPass, HIGH_PASS_TAPS);
+//            auto convoluted = customConvolution(afterLowPass, revert(afterLowPass));
+            drawGraph(normalized, LCD_COLOR_LIGHTCYAN);
+            drawGraph(afterLowPass, LCD_COLOR_LIGHTBLUE);
+            drawGraph(afterHighPass, LCD_COLOR_ORANGE);
+//                drawGraph(convoluted, LCD_COLOR_WHITE);
+            const std::vector<int> &peaks = detectPeaks(afterHighPass);
+            drawPeaks(peaks);
+            outputHeartRate(peaks);
         }
     }
 }
