@@ -1,10 +1,12 @@
-#include "digital_filter.h"
 #include <cstdio>
 #include <cmath>
 #include <algorithm>
+#include "digital_filter.h"
 #include "main.h"
 #include "stm32746g_discovery_lcd.h"
-#include "MAX30100.h"
+#include <FreeRTOS.h>
+#include "queue.h"
+#include "sensor.h"
 
 static void LCD_Config() {
     BSP_SDRAM_Init();
@@ -27,39 +29,10 @@ const int graphTop = 60;
 const uint graphBottom = 272;
 const int graphHeight = graphBottom - graphTop;
 
-const int sps = 100;
-const SamplingRate rate = MAX30100_SAMPRATE_100HZ;
-
-
-static MAX30100 sensor;
-
 static uint16_t sampleBufferIr[SAMPLE_CAPACITY];
 __unused static uint16_t sampleBufferRed[SAMPLE_CAPACITY];
 
 void clearGraph();
-
-void setupSensor() {
-
-    puts("Initializing MAX30100..");
-
-    // Initialize the sensor
-// Failures are generally due to an improper I2C wiring, missing power supply
-// or wrong target chip
-    if (!sensor.begin()) {
-        puts("FAILED");
-        Error_Handler();
-    } else {
-        puts("SUCCESS");
-    }
-
-    // Set up the wanted parameters
-    sensor.setMode(MAX30100_MODE_SPO2_HR);
-    sensor.setLedsCurrent(MAX30100_LED_CURR_20_8MA, MAX30100_LED_CURR_20_8MA);
-    sensor.setLedsPulseWidth(MAX30100_SPC_PW_400US_14BITS);
-    sensor.setSamplingRate(rate);
-    sensor.setHighresModeEnabled(true);
-    sensor.resetFifo();
-}
 
 template<size_t len>
 void drawGraph(const std::array<float, len> &samples, uint32_t color) {
@@ -192,26 +165,24 @@ void drawPeaks(const std::vector<int> &peaks) {
 }
 
 void outputHeartRate(const std::vector<int> &peaks) {
-    float median = -1.f;
     float pulse = -1.f;
     bool valid = false;
-    if(peaks.size()>1) {
+    if (peaks.size() > 1) {
         std::vector<int> distances;
         for (int i = 1; i < peaks.size(); ++i) {
             distances.push_back(peaks[i] - peaks[i - 1]);
         }
         std::sort(distances.begin(), distances.end());
-        if (distances.size() & 1) {
-            median = (float) distances[distances.size() / 2];
-        } else {
-            median = (float) (distances[distances.size() / 2] + distances[distances.size() / 2 + 1]) / 2.0f;
+        auto median = (float) distances[distances.size() / 2];
+        if (!(distances.size() & 1)) {
+            median = (median + (float) distances[distances.size() / 2 + 1]) / 2.0f;
         }
         valid =
                 median <= (float) distances[0] * 1.1f || median > (float) distances.back() / 1.1f;
-        pulse = 60.f *  sps / median;
+        pulse = 60.f * SAMPLES_PER_SEC / median;
     }
     uint32_t oldTextColor = BSP_LCD_GetTextColor();
-    BSP_LCD_SetTextColor(valid ?  LCD_COLOR_MAGENTA: LCD_COLOR_DARKRED);
+    BSP_LCD_SetTextColor(valid ? LCD_COLOR_MAGENTA : LCD_COLOR_DARKRED);
     BSP_LCD_ClearStringLine(1);
 
     static char buf[100];
@@ -228,17 +199,14 @@ _Noreturn void App_Run(void) {
     BSP_LCD_SetBackColor(LCD_COLOR_DARKBLUE);
     BSP_LCD_DisplayStringAtLine(0, (uint8_t *) "Heartbeat Demo");
     BSP_LCD_SetFont(&Font24);
-    setupSensor();
     int sampleIndex = 0;
     while (true) {
-        uint16_t ir, red;
-
-        sensor.update();
-
-        while (sensor.getRawValues(&ir, &red)) {
+        SensorSample_t sample;
+        bool received = receiveData( &sample, 1000);
+        if(received == pdPASS) {
             if (sampleIndex >= 0) {
-                sampleBufferIr[sampleIndex] = ir;
-                sampleBufferRed[sampleIndex] = red;
+                sampleBufferIr[sampleIndex] = sample.ir;
+                sampleBufferRed[sampleIndex] = sample.red;
                 BSP_LCD_DrawPixel(sampleIndex, graphTop, LCD_COLOR_GREEN);
             }
             sampleIndex++;
@@ -257,7 +225,6 @@ _Noreturn void App_Run(void) {
                 drawPeaks(peaks);
                 outputHeartRate(peaks);
                 sampleIndex = 0;
-                sensor.resetFifo();
             }
         }
     }

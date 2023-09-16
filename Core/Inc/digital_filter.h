@@ -12,7 +12,6 @@
 #include <algorithm>
 #include "main.h"
 #include "stm32746g_discovery_lcd.h"
-#include "MAX30100.h"
 #include "dsp/transform_functions.h"
 #include "dsp/filtering_functions.h"
 
