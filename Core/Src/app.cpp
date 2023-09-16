@@ -6,6 +6,8 @@
 #include "stm32746g_discovery_lcd.h"
 #include "sensor.h"
 
+extern "C" void requestVisibleLayer(uint i);
+
 static void LCD_Config() {
     BSP_SDRAM_Init();
     /* LCD Initialization */
@@ -21,14 +23,19 @@ static void LCD_Config() {
     BSP_LCD_Clear(LCD_COLOR_DARKBLUE);
 
     BSP_LCD_SetTransparency(0, 255);
+    BSP_LCD_SetTransparency(1, 255);
+    BSP_LCD_SelectLayer(0);
+    BSP_LCD_SetLayerVisible(0, ENABLE);
+    BSP_LCD_SetLayerVisible(1, DISABLE);
+
 }
 
 const int graphTop = 60;
 const uint graphBottom = 272;
 const int graphHeight = graphBottom - graphTop;
 
-static std::array<uint16_t,SAMPLE_CAPACITY> sampleBufferIr;
-static std::array<uint16_t,SAMPLE_CAPACITY> sampleBufferRed;
+static std::array<uint16_t, SAMPLE_CAPACITY> sampleBufferIr;
+static std::array<uint16_t, SAMPLE_CAPACITY> sampleBufferRed;
 
 void clearGraph();
 
@@ -90,7 +97,8 @@ __unused std::array<float, len> autoConvolution(const std::array<float, len> &sr
 }
 
 template<size_t len>
-__unused std::array<float, len>customConvolution(const std::array<float, len> &srcBufferA, const std::array<float, len> &srcBufferB) {
+__unused std::array<float, len>
+customConvolution(const std::array<float, len> &srcBufferA, const std::array<float, len> &srcBufferB) {
     const uint bufLen = len + len / 2;
     float buffer[bufLen];
     arm_conv_partial_f32(srcBufferA.data(), (uint32_t) len,
@@ -190,12 +198,14 @@ void outputHeartRate(const std::vector<int> &peaks) {
 
 
 _Noreturn void App_Run(void) {
+    uint layerIndex = 0;
     LCD_Config();
     BSP_LCD_SetTextColor(LCD_COLOR_YELLOW);
     BSP_LCD_SetBackColor(LCD_COLOR_DARKBLUE);
-    BSP_LCD_DisplayStringAtLine(0, (uint8_t *) "Heartbeat Demo");
-    BSP_LCD_SetFont(&Font24);
+    BSP_LCD_SetFont(&Font20);
+    BSP_LCD_DisplayStringAtLine(0, (uint8_t *) "Heartbeat: STM32F7 + MAX30100");
     int sampleIndex = 0;
+    int newDataCnt = 0;
     while (true) {
         SensorSample_t sample;
         bool dataReceived = false;
@@ -206,22 +216,27 @@ _Noreturn void App_Run(void) {
             if (sampleIndex >= SAMPLE_CAPACITY) {
                 sampleIndex = 0;
             }
+            newDataCnt++;
             dataReceived = true;
         }
-        if (dataReceived) {
-            clearGraph();
+        if (newDataCnt>10) {
+            newDataCnt = 0;
+//            layerIndex = 1 - layerIndex;
+            BSP_LCD_SelectLayer(layerIndex);
             auto normalized =
                     num_to_float_normalize<uint16_t, SAMPLE_CAPACITY>(sampleBufferIr, sampleIndex);
             auto afterLowPass = performFirPass(normalized, LOW_PASS_TAPS);
             auto afterHighPass = performFirPass(afterLowPass, HIGH_PASS_TAPS);
 //            auto convoluted = customConvolution(afterLowPass, revert(afterLowPass));
+            const std::vector<int> &peaks = detectPeaks(afterHighPass);
+            clearGraph();
             drawGraph(normalized, LCD_COLOR_LIGHTCYAN);
             drawGraph(afterLowPass, LCD_COLOR_LIGHTBLUE);
             drawGraph(afterHighPass, LCD_COLOR_ORANGE);
 //                drawGraph(convoluted, LCD_COLOR_WHITE);
-            const std::vector<int> &peaks = detectPeaks(afterHighPass);
             drawPeaks(peaks);
             outputHeartRate(peaks);
+            requestVisibleLayer(layerIndex);
         }
     }
 }
