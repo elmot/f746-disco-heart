@@ -1,6 +1,6 @@
 <component name="ProjectRunConfigurationManager">
   <configuration default="false" name="OCD f746-disco-heart" type="com.jetbrains.cidr.embedded.openocd.conf.type" factoryName="com.jetbrains.cidr.embedded.openocd.conf.factory" REDIRECT_INPUT="false" ELEVATE="false" USE_EXTERNAL_CONSOLE="false" EMULATE_TERMINAL="false" PASS_PARENT_ENVS_2="true" PROJECT_NAME="f746-disco-heart" TARGET_NAME="f746-disco-heart" CONFIG_NAME="Debug" version="1" RUN_TARGET_PROJECT_NAME="f746-disco-heart" RUN_TARGET_NAME="f746-disco-heart">
-    <openocd version="1" gdb-port="3333" telnet-port="4444" board-config="board/stm32f746g-disco.cfg" reset-type="HALT" download-type="UPDATED_ONLY">
+    <openocd version="1" gdb-port="3333" telnet-port="4444" board-config="D:\projects\f746-disco-heart\stm32f746g-disco.cfg" reset-type="HALT" download-type="ALWAYS">
       <debugger kind="GDB" isBundled="true" />
     </openocd>
     <method v="2">
