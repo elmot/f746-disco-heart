@@ -20,7 +20,7 @@ const int SAMPLE_CAPACITY = (480);
 static const int BLOCK_SIZE = 64;
 
 template<typename NUM, int len>
-std::array<float, len> num_to_float_normalize(const std::array<NUM, len> &srcBuf, int srcIndexShift = 0) {
+std::vector<float> num_to_float_normalize(const std::array<NUM, len> &srcBuf, int srcIndexShift = 0) {
     NUM topVal = srcBuf[0];
     NUM bottomVal = topVal;
     for (int i = 1; i < len; ++i) {
@@ -31,36 +31,17 @@ std::array<float, len> num_to_float_normalize(const std::array<NUM, len> &srcBuf
     }
     double magnitudeScale = (topVal - bottomVal);
     NUM mid = (topVal + bottomVal) / 2;
-    std::array<float, len> result = {};
+    std::vector<float> result(len);
     for (int i = 0; i < len; ++i) {
         double v = (srcBuf[(i + srcIndexShift) % len] - bottomVal) / magnitudeScale;
         if (v > 1.0) v = 1.0; else if (v < -1.0) v = -1.0;
-        result[i] = v;
+        result[i] = (float) v;
     }
     return result;
 }
 
-template<size_t len, size_t num_taps>
-std::array<float, len>
-performFirPass(const std::array<float, len> &srcBuffer, const std::array<float, num_taps> &fir_taps) {
-    static float firStateF32[2 * BLOCK_SIZE + num_taps - 1];
+std::vector<float> performFirPass(const std::vector<float> &srcBuffer, const std::vector<float> &fir_taps);
 
-    arm_fir_instance_f32 fir_instance;
-
-    arm_fir_init_f32(&fir_instance, num_taps, fir_taps.data(), firStateF32, BLOCK_SIZE);
-
-    /* ----------------------------------------------------------------------
-    ** Call the FIR process function for every blockSize samples
-    ** ------------------------------------------------------------------- */
-    std::array<float, len> result = {};
-    for (int idx = 0; idx < SAMPLE_CAPACITY;) {
-        int blockSize = SAMPLE_CAPACITY - idx;
-        if (blockSize > BLOCK_SIZE) blockSize = BLOCK_SIZE;
-        arm_fir_f32(&fir_instance, srcBuffer.data() + idx, result.data() + idx, blockSize);
-        idx += blockSize;
-    }
-    return result;
-}
-
+std::vector<float> revert(const std::vector<float> &srcBuffer);
 
 #endif //F746_DISCO_HEART_DIGITAL_FILTER_H

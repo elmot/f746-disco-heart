@@ -39,11 +39,10 @@ static std::array<uint16_t, SAMPLE_CAPACITY> sampleBufferRed;
 
 void clearGraph();
 
-template<size_t len>
-void drawGraph(const std::array<float, len> &samples, uint32_t color) {
+void drawGraph(const std::vector<float> &samples, uint32_t color) {
     float topVal = samples[0];
     float bottomVal = topVal;
-    uint maxX = len < 480 ? len : 480;
+    uint maxX = samples.size() < 480 ? samples.size() : 480;
     for (int i = 1; i < maxX; ++i) {
         float v = samples[i];
         if (v > topVal) topVal = v; else if (v < bottomVal) bottomVal = v;
@@ -82,44 +81,7 @@ void clearGraph() {
 #include "low_pass.inc"
 #include "high_pass.inc"
 
-template<size_t len>
-__unused std::array<float, len> autoConvolution(const std::array<float, len> &srcBuffer) {
-    const uint bufLen = len + len / 2;
-    float buffer[bufLen];
-    arm_conv_partial_f32(srcBuffer.data(), (uint32_t) len,
-                         srcBuffer.data(), (uint32_t) len,
-                         buffer, 0, bufLen);
-
-
-    std::array<float, len> result = {};
-    std::copy_n(std::begin(buffer) + len / 2, len, result.begin());
-    return result;
-}
-
-template<size_t len>
-__unused std::array<float, len>
-customConvolution(const std::array<float, len> &srcBufferA, const std::array<float, len> &srcBufferB) {
-    const uint bufLen = len + len / 2;
-    float buffer[bufLen];
-    arm_conv_partial_f32(srcBufferA.data(), (uint32_t) len,
-                         srcBufferB.data(), (uint32_t) len,
-                         buffer, 0, bufLen);
-
-
-    std::array<float, len> result = {};
-    std::copy_n(std::begin(buffer) + len / 6, len, result.begin());
-    return result;
-}
-
-template<size_t len>
-__unused std::array<float, len> revert(const std::array<float, len> &srcBuffer) {
-    std::array<float, len> result = {};
-    std::copy(std::begin(srcBuffer), std::end(srcBuffer), result.rbegin());
-    return result;
-}
-
-template<size_t len>
-std::vector<int> detectPeaks(const std::array<float, len> &src) {
+std::vector<int> detectPeaks(const std::vector<float> &src) {
     typedef std::tuple<int, float> point;
     std::vector<point> peaks;
     std::vector<int> result;

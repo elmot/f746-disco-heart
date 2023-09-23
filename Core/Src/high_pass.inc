@@ -2,7 +2,7 @@
 
 #include <array>
 
-const std::array<float, 78> HIGH_PASS_TAPS = {
+const std::vector<float> HIGH_PASS_TAPS = {
         0.000000000000000000,
         0.000005211184760936,
         0.000018549957697842,

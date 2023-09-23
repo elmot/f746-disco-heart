@@ -2,7 +2,7 @@
 
 #include <array>
 
-const std::array<float,60> LOW_PASS_TAPS = {
+const std::vector<float> LOW_PASS_TAPS = {
                 0.000000000000000000,
                 -0.000025695329810175,
                 -0.000109001586731170,
