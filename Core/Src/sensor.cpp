@@ -1,14 +1,14 @@
 #include <cstdio>
 #include "sensor.h"
-#include "MAX30100.h"
 #include "FreeRTOS.h"
 #include "task.h"
+#include "MAX30100.h"
 
-const SamplingRate rate =
+const MAX30100::SAMPLING_RATE_t rate =
 #if SAMPLES_PER_SEC == 50
         MAX30100_SAMPRATE_50HZ;
 #elif SAMPLES_PER_SEC == 100
-        MAX30100_SAMPRATE_100HZ;
+        MAX30100::RATE_100HZ;
 #elif SAMPLES_PER_SEC == 167
 MAX30100_SAMPRATE_167HZ;
 #elif SAMPLES_PER_SEC == 200
@@ -26,41 +26,37 @@ MAX30100_SAMPRATE_1000HZ;
 #error Incorrect SAMPLES_PER_SEC value
 
 #endif
-
+extern I2C_HandleTypeDef hi2c1;
 extern "C" void Error_Handler();
-static MAX30100 sensor;
+static MAX30100 sensor(hi2c1);
 
 void setupSensor() {
 
     puts("Initializing MAX30100..");
 
-    // Initialize the sensor
-// Failures are generally due to an improper I2C wiring, missing power supply
-// or wrong target chip
-    if (!sensor.begin()) {
+    bool initResult = sensor.setSpo2Mode(true);
+    initResult &= sensor.setLedsCurrent(MAX30100::CURR_20_8MA, MAX30100::CURR_20_8MA);
+    initResult &= sensor.setLedsPulseWidth(MAX30100::MAX30100::PULSE_400US);
+    initResult &= sensor.setSamplingRate(rate);
+    initResult &= sensor.setHighresMode(true);
+    initResult &= sensor.resetFifo();
+    if (initResult) {
+        puts("SUCCESS");
+    } else {
         puts("FAILED");
         Error_Handler();
-    } else {
-        puts("SUCCESS");
     }
-
-    // Set up the wanted parameters
-    sensor.setMode(MAX30100_MODE_SPO2_HR);
-    sensor.setLedsCurrent(MAX30100_LED_CURR_20_8MA, MAX30100_LED_CURR_20_8MA);
-    sensor.setLedsPulseWidth(MAX30100_SPC_PW_400US_14BITS);
-    sensor.setSamplingRate(rate);
-    sensor.setHighresModeEnabled(true);
-    sensor.resetFifo();
 }
 
 extern "C" [[noreturn]] void sensor_start(__unused void *argument) {
     setupSensor();
-    SensorSample_t sample;
+
     while (true) {
-        sensor.update();
-        while (sensor.getRawValues(&sample.ir, &sample.red)) {
-            sendData(&sample);
-        }
+        sensor.readValues(
+                [](uint16_t irValue, uint16_t redValue) {
+                    SensorSample_t sample = {irValue, redValue};
+                    sendData(&sample);
+                }, [] {}, 10);
         vTaskDelay(10);
     }
 }

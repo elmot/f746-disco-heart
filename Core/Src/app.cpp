@@ -91,7 +91,7 @@ std::vector<int> detectPeaks(const std::vector<float> &src) {
         if ((v >= src[i - 1]) && (v > src[i - 7]) && (v > src[i - 3]) &&
             (v > src[i + 1]) && (v > src[i + 7]) && (v > src[i + 3])
             && (i - lastPeak) > 7) {
-            peaks.push_back({i, src[i]});
+            peaks.emplace_back(i, src[i]);
         }
     }
     if (peaks.size() < 4) return {};
@@ -185,17 +185,17 @@ _Noreturn void App_Run(void) {
             newDataCnt = 0;
 //            layerIndex = 1 - layerIndex;
             BSP_LCD_SelectLayer(layerIndex);
-            auto normalized =
+            auto normalizedIr =
                     num_to_float_normalize<uint16_t, SAMPLE_CAPACITY>(sampleBufferIr, sampleIndex);
-            auto afterLowPass = performFirPass(normalized, LOW_PASS_TAPS);
+            auto normalizedRed =
+                    num_to_float_normalize<uint16_t, SAMPLE_CAPACITY>(sampleBufferRed, sampleIndex);
+            auto afterLowPass = performFirPass(normalizedIr, LOW_PASS_TAPS);
             auto afterHighPass = performFirPass(afterLowPass, HIGH_PASS_TAPS);
-//            auto convoluted = customConvolution(afterLowPass, revert(afterLowPass));
             const std::vector<int> &peaks = detectPeaks(afterHighPass);
             clearGraph();
-            drawGraph(normalized, LCD_COLOR_LIGHTCYAN);
-            drawGraph(afterLowPass, LCD_COLOR_LIGHTBLUE);
+            drawGraph(normalizedIr, LCD_COLOR_LIGHTCYAN);
+            drawGraph(performFirPass(performFirPass(normalizedRed,LOW_PASS_TAPS),HIGH_PASS_TAPS), LCD_COLOR_RED);
             drawGraph(afterHighPass, LCD_COLOR_ORANGE);
-//                drawGraph(convoluted, LCD_COLOR_WHITE);
             drawPeaks(peaks);
             outputHeartRate(peaks);
             requestVisibleLayer(layerIndex);

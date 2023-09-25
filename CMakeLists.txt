@@ -54,6 +54,7 @@ endif ()
 
 include_directories(Core/Inc Drivers/STM32F7xx_HAL_Driver/Inc Drivers/STM32F7xx_HAL_Driver/Inc/Legacy Drivers/CMSIS/Device/ST/STM32F7xx/Include Drivers/CMSIS/Include Middlewares/Third_Party/FreeRTOS/Source/include Middlewares/Third_Party/FreeRTOS/Source/CMSIS_RTOS_V2 Middlewares/Third_Party/FreeRTOS/Source/portable/GCC/ARM_CM7/r0p1 Core/ThreadSafe)
 include_directories(Drivers/STM32746G-Discovery/)
+include_directories(Drivers/MAX3010x/)
 
 add_definitions(-DDEBUG -DUSE_HAL_DRIVER -DSTM32F746xx -DSTM32_THREAD_SAFE_STRATEGY=4)
 
@@ -66,12 +67,6 @@ add_link_options(-mcpu=cortex-m7 -mthumb -mthumb-interwork)
 add_link_options(-T ${LINKER_SCRIPT})
 
 add_executable(${PROJECT_NAME} ${SOURCES} ${LINKER_SCRIPT})
-target_include_directories(${PROJECT_NAME} PRIVATE Arduino-MAX30100/src)
-target_sources(${PROJECT_NAME} PRIVATE
-        Arduino-MAX30100/src/MAX30100_BeatDetector.cpp
-        Arduino-MAX30100/src/MAX30100_PulseOximeter.cpp
-        Arduino-MAX30100/src/MAX30100_SpO2Calculator.cpp
-)
 
 ####  CMSIS-DSP
 add_subdirectory(CMSIS-DSP)
