@@ -91,13 +91,12 @@ bool MAX30100::resetFifo() {
 
 uint8_t MAX30100::readRegister(uint8_t address) {
     uint8_t data;
-    HAL_I2C_Mem_Read((I2C_HandleTypeDef *) handle, MAX30100_I2C_ADDRESS << 1, address, 1, &data, 1, 1);
+    readI2CRegisters(MAX30100_I2C_ADDRESS, address, 1, &data);
     return data;
 }
 
 bool MAX30100::writeRegister(uint8_t address, uint8_t data) {
-    return HAL_OK ==
-           HAL_I2C_Mem_Write((I2C_HandleTypeDef *) handle, MAX30100_I2C_ADDRESS << 1, address, 1, &data, 1, 1);
+    return writeI2CRegister(MAX30100_I2C_ADDRESS, address, data);
 }
 
 
@@ -155,8 +154,7 @@ bool MAX30100::readValues(void (*accept)(uint16_t irValue, uint16_t redValue),
     if (toRead > FIFO_DEPTH) toRead = FIFO_DEPTH;
     if (toRead > maxBatchCnt) toRead = maxBatchCnt;
     if (toRead) {
-        if (HAL_I2C_Mem_Read((I2C_HandleTypeDef *) handle, MAX30100_I2C_ADDRESS << 1,
-                             REG_FIFO_DATA, 1, buffer, 4 * toRead, toRead) != HAL_OK) {
+        if (!readI2CRegisters(MAX30100_I2C_ADDRESS, REG_FIFO_DATA, 4 * toRead, buffer)) {
             return false;
         }
 

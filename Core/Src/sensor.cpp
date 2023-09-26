@@ -2,6 +2,7 @@
 #include "sensor.h"
 #include "FreeRTOS.h"
 #include "task.h"
+#include "stm32f7xx_hal.h"
 #include "MAX30100.h"
 
 const MAX30100::SAMPLING_RATE_t rate =
@@ -26,9 +27,19 @@ MAX30100_SAMPRATE_1000HZ;
 #error Incorrect SAMPLES_PER_SEC value
 
 #endif
+
 extern I2C_HandleTypeDef hi2c1;
 extern "C" void Error_Handler();
-static MAX30100 sensor(hi2c1);
+static MAX30100 sensor (
+        [](uint8_t i2CAddress, uint8_t address, uint8_t len, uint8_t *data) {
+            return HAL_OK ==
+                   HAL_I2C_Mem_Read(&hi2c1, i2CAddress << 1, address, 1, data, len, len);
+        },
+        [](uint8_t i2CAddress, uint8_t address, uint8_t data) {
+            return HAL_OK ==
+                   HAL_I2C_Mem_Write(&hi2c1, i2CAddress << 1, address, 1, &data, 1, 1);
+        }
+);
 
 void setupSensor() {
 

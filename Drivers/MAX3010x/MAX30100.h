@@ -1,25 +1,28 @@
 
-#ifndef __MAX3010X_H
-#define __MAX3010X_H
+#ifndef MAX30100_H
+#define MAX30100_H
 
 #include <cstdint>
-#include "stm32f7xx_hal.h"
 
 class MAX30100 {
 private:
-    const I2C_HandleTypeDef * handle;
     uint8_t readRegister(uint8_t address);
+
     bool writeRegister(uint8_t address, uint8_t data);
 
+    bool (*readI2CRegisters)(uint8_t i2CAddress, uint8_t address, uint8_t len, uint8_t *data);
+
+    bool (*writeI2CRegister)(uint8_t i2CAddress, uint8_t address, uint8_t data);
+
 public:
-    enum PULSE_WIDTH_t : uint8_t {
+    enum [[maybe_unused]] PULSE_WIDTH_t : uint8_t {
         PULSE_200US = 0x00,
         PULSE_400US = 0x01,
         PULSE_800US = 0x02,
         PULSE_1600US = 0x03,
         PULSE_MASK = 0xfc,
     };
-    enum SAMPLING_RATE_t : uint8_t {
+    enum [[maybe_unused]] SAMPLING_RATE_t : uint8_t {
         RATE_50HZ = 0x00,
         RATE_100HZ = 0x01 << 2,
         RATE_167HZ = 0x02 << 2,
@@ -30,7 +33,7 @@ public:
         RATE_1000HZ = 0x07 << 2,
         RATE_MASK = 0xe3
     };
-    typedef enum LED_CURRENT_t : uint8_t {
+    typedef enum [[maybe_unused]] LED_CURRENT_t : uint8_t {
         CURR_0MA = 0x00,
         CURR_4_4MA = 0x01,
         CURR_7_6MA = 0x02,
@@ -49,9 +52,11 @@ public:
         CURR_50MA = 0x0f
     } LEDCurrent;
 
-
-    explicit MAX30100(I2C_HandleTypeDef & handle) {
-        this->handle = &handle;
+    explicit MAX30100(
+            bool (*readI2CRegisters)(uint8_t i2CAddress, uint8_t address, uint8_t len, uint8_t *data),
+            bool (*writeI2CRegister)(uint8_t i2CAddress, uint8_t address, uint8_t data)) {
+        this->readI2CRegisters = readI2CRegisters;
+        this->writeI2CRegister = writeI2CRegister;
     }
 
     bool setSpo2Mode(bool enabled);
@@ -87,4 +92,4 @@ public:
 
 };
 
-#endif //__MAX3010X_H
+#endif //MAX30100_H
