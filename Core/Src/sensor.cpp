@@ -46,6 +46,17 @@ void setupSensor() {
         puts("FAILED");
         Error_Handler();
     }
+    uint8_t partId = sensor.getPartId();
+    uint8_t revId = sensor.getRevId();
+    printf("Device: 0x%02x:0x%02x\r\n", partId, revId);
+    puts("Temperature measurement...");
+    if(!sensor.startTemperatureSampling()) {
+        puts("FAILED");
+        Error_Handler();
+    }
+    while (!sensor.isTemperatureReady()) {}
+    printf("T = %.1fC\r\n", sensor.retrieveTemperature());
+
 }
 
 extern "C" [[noreturn]] void sensor_start(__unused void *argument) {
