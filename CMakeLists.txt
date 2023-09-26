@@ -54,7 +54,6 @@ endif ()
 
 include_directories(Core/Inc Drivers/STM32F7xx_HAL_Driver/Inc Drivers/STM32F7xx_HAL_Driver/Inc/Legacy Drivers/CMSIS/Device/ST/STM32F7xx/Include Drivers/CMSIS/Include Middlewares/Third_Party/FreeRTOS/Source/include Middlewares/Third_Party/FreeRTOS/Source/CMSIS_RTOS_V2 Middlewares/Third_Party/FreeRTOS/Source/portable/GCC/ARM_CM7/r0p1 Core/ThreadSafe)
 include_directories(Drivers/STM32746G-Discovery/)
-include_directories(Drivers/MAX3010x/)
 
 add_definitions(-DDEBUG -DUSE_HAL_DRIVER -DSTM32F746xx -DSTM32_THREAD_SAFE_STRATEGY=4)
 
@@ -68,9 +67,13 @@ add_link_options(-T ${LINKER_SCRIPT})
 
 add_executable(${PROJECT_NAME} ${SOURCES} ${LINKER_SCRIPT})
 
+#### MAX30100
+add_subdirectory(Drivers/MAX30100)
+
 ####  CMSIS-DSP
 add_subdirectory(CMSIS-DSP)
-target_link_libraries(${PROJECT_NAME} CMSISDSP)
+
+target_link_libraries(${PROJECT_NAME} CMSISDSP MAX30100)
 
 set(HEX_FILE ${PROJECT_BINARY_DIR}/${PROJECT_NAME}.hex)
 set(BIN_FILE ${PROJECT_BINARY_DIR}/${PROJECT_NAME}.bin)
