@@ -3,7 +3,7 @@
 //
 #include "digital_filter.h"
 std::vector<float> performFirPass(const std::vector<float> &srcBuffer, const std::vector<float> &fir_taps) {
-    static std::vector<float> firStateF32(2 * BLOCK_SIZE + fir_taps.size() - 1);
+    std::vector<float> firStateF32(2 * BLOCK_SIZE + fir_taps.size() - 1);
 
     arm_fir_instance_f32 fir_instance;
 
